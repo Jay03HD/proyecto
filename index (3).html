@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSS · Redes sociales y bienestar estudiantil</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--tx:#1f2937;--mut:#6b7280;--ac:#5b4bdb}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--ac);color:#fff;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+h1{font-size:1.15rem;margin:0}
+.filters{display:flex;gap:12px;flex-wrap:wrap}
+select{padding:6px;border-radius:6px;border:0;margin-left:4px}
+main{max-width:1100px;margin:auto;padding:14px}
+.kpis,.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));margin-top:12px}
+.card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 3px #0002;min-width:0}
+.kpi b{display:block;font-size:1.5rem;color:var(--ac)}
+.kpi span,h2{font-size:.85rem;color:var(--mut);margin:0 0 8px}
+.wide{grid-column:1/-1}
+.box{position:relative;height:260px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{padding:6px;text-align:right;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+footer{text-align:center;color:var(--mut);font-size:.75rem;padding:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>DSS · Redes sociales y bienestar estudiantil</h1>
+  <div class="filters">
+    <label>Nivel <select id="fl"></select></label>
+    <label>Uso nocturno <select id="fn"><option value="all">Todos</option><option value="1">Sí</option><option value="0">No</option></select></label>
+  </div>
+</header>
+<main>
+  <section class="kpis">
+    <div class="card kpi"><span>Estudiantes</span><b id="k1">–</b></div>
+    <div class="card kpi"><span>Uso diario promedio</span><b id="k2">–</b></div>
+    <div class="card kpi"><span>Índice de salud mental</span><b id="k3">–</b></div>
+    <div class="card kpi"><span>Sueño promedio</span><b id="k4">–</b></div>
+    <div class="card kpi"><span>Impacto negativo</span><b id="k5">–</b></div>
+  </section>
+  <section class="grid">
+    <div class="card wide"><h2>Salud mental promedio según horas de uso diario (línea)</h2><div class="box"><canvas id="c1"></canvas></div></div>
+    <div class="card"><h2>Salud mental promedio por plataforma (barras)</h2><div class="box"><canvas id="c2"></canvas></div></div>
+    <div class="card"><h2>Impacto declarado (dona)</h2><div class="box"><canvas id="c3"></canvas></div></div>
+    <div class="card"><h2>Uso diario vs salud mental, muestra de estudiantes (dispersión)</h2><div class="box"><canvas id="c4"></canvas></div></div>
+    <div class="card"><h2>Resumen por rango de uso (tabla)</h2><div class="scroll"><table id="tb"></table></div></div>
+  </section>
+</main>
+<footer>Los filtros aplican a todo el tablero. Son correlaciones, no prueban causalidad.</footer>
+<script>
+const $ = id => document.getElementById(id);
+const RANGES = ['0-2 h', '2-4 h', '4-6 h', '6-8 h', '8-10 h', '10+ h'];
+const rIdx = u => u <= 2 ? 0 : u <= 4 ? 1 : u <= 6 ? 2 : u <= 8 ? 3 : u <= 10 ? 4 : 5;
+const avg = (a, k) => { const v = a.map(d => d[k]).filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+const f = (x, n = 1) => x == null ? '–' : x.toFixed(n);
+let D = [], ch = {};
+
+fetch('data.json').then(r => r.json()).then(j => { D = j.registros; init(); })
+  .catch(() => document.querySelector('main').insertAdjacentHTML('afterbegin', '<p>No se pudo cargar data.json</p>'));
+
+function init() {
+  const ls = [...new Set(D.map(d => d.Level))].sort();
+  $('fl').innerHTML = '<option value="all">Todos</option>' + ls.map(l => `<option>${l}</option>`).join('');
+  $('fl').onchange = $('fn').onchange = render;
+  render();
+}
+
+function draw(id, cfg) {
+  if (ch[id]) ch[id].destroy();
+  cfg.options = Object.assign({responsive: true, maintainAspectRatio: false}, cfg.options);
+  ch[id] = new Chart($(id), cfg);
+}
+
+function render() {
+  const l = $('fl').value, n = $('fn').value;
+  const S = D.filter(d => (l === 'all' || d.Level === l) && (n === 'all' || d.Late == n));
+
+  // KPIs
+  $('k1').textContent = S.length.toLocaleString('es-MX');
+  $('k2').textContent = f(avg(S, 'Usage')) + ' h';
+  $('k3').textContent = f(avg(S, 'MH'));
+  $('k4').textContent = f(avg(S, 'Sleep')) + ' h';
+  $('k5').textContent = S.length ? f(S.filter(d => d.Impact === 'Negative').length / S.length * 100) + '%' : '–';
+
+  // agrupar por rango de uso
+  const G = RANGES.map(() => []);
+  S.forEach(d => G[rIdx(d.Usage)].push(d));
+
+  // 1. Línea
+  draw('c1', {type: 'line', data: {labels: RANGES, datasets: [{label: 'Salud mental', data: G.map(g => avg(g, 'MH')),
+    borderColor: '#5b4bdb', backgroundColor: '#5b4bdb22', fill: true, tension: .3}]},
+    options: {plugins: {legend: {display: false}}, scales: {y: {title: {display: true, text: 'Índice de salud mental'}}}}});
+
+  // 2. Barras por plataforma
+  const P = {};
+  S.forEach(d => (P[d.Platform] ||= []).push(d));
+  const pl = Object.keys(P).sort((a, b) => avg(P[b], 'MH') - avg(P[a], 'MH'));
+  draw('c2', {type: 'bar', data: {labels: pl, datasets: [{label: 'Salud mental', data: pl.map(p => avg(P[p], 'MH')), backgroundColor: '#5b4bdb'}]},
+    options: {plugins: {legend: {display: false}}}});
+
+  // 3. Dona de impacto
+  const im = ['Beneficial', 'Neutral', 'Negative'];
+  draw('c3', {type: 'doughnut', data: {labels: ['Beneficioso', 'Neutral', 'Negativo'],
+    datasets: [{data: im.map(i => S.filter(d => d.Impact === i).length), backgroundColor: ['#76c043', '#ffc220', '#e04f39']}]}});
+
+  // 4. Dispersión (muestra de máx. ~800 puntos)
+  const step = Math.max(1, Math.ceil(S.length / 800));
+  draw('c4', {type: 'scatter', data: {datasets: [{label: 'Estudiantes', backgroundColor: '#5b4bdb88', pointRadius: 2.5,
+    data: S.filter((_, i) => i % step === 0).map(d => ({x: d.Usage, y: d.MH}))}]},
+    options: {plugins: {legend: {display: false}}, scales: {
+      x: {title: {display: true, text: 'Horas de uso diario'}}, y: {title: {display: true, text: 'Salud mental'}}}}});
+
+  // 5. Tabla
+  $('tb').innerHTML = '<tr><th>Uso diario</th><th>n</th><th>Salud mental</th><th>Sueño (h)</th><th>Estrés</th><th>GPA</th></tr>' +
+    RANGES.map((r, i) => `<tr><td>${r}</td><td>${G[i].length}</td><td>${f(avg(G[i], 'MH'))}</td><td>${f(avg(G[i], 'Sleep'))}</td><td>${f(avg(G[i], 'Stress'))}</td><td>${f(avg(G[i], 'GPA'), 2)}</td></tr>`).join('');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+=== 2. ESTRUCTURA ===
+Filas: 4500 | Columnas: 16
+Student_ID                         str
+Age                              int64
+Gender                             str
+Academic_Level                     str
+Primary_Platform                   str
+Daily_Usage_Hours              float64
+Weekend_Extra_Hours            float64
+Device_Type                        str
+Sleep_Duration_Hours           float64
+Sleep_Quality_Score              int64
+Late_Night_Usage                  bool
+Social_Comparison_Frequency        str
+Perceived_Stress_Score         float64
+Mental_Health_Index              int64
+Academic_Performance_GPA       float64
+Overall_Impact                     str
+Periodo: el dataset NO contiene fechas (es una encuesta transversal, un registro por estudiante).
+Gender: {'Female': 2234, 'Male': 2051, 'Non-Binary': 122, 'Prefer not to say': 93}
+Academic_Level: {'Undergraduate': 2777, 'High School': 1477, 'Postgraduate': 246}
+Primary_Platform: {'Instagram': 1453, 'TikTok': 1226, 'YouTube': 818, 'Snapchat': 472, 'Reddit': 229, 'X (Twitter)': 206, 'LinkedIn': 96}
+Device_Type: {'Smartphone': 3775, 'Laptop/PC': 596, 'Tablet': 129}
+Social_Comparison_Frequency: {'Sometimes': 1594, 'Frequently': 1248, 'Rarely': 766, 'Always': 632, 'Never': 260}
+Overall_Impact: {'Beneficial': 3681, 'Neutral': 654, 'Negative': 165}
+
+=== 3. CALIDAD ===
+Valores vacios:
+Perceived_Stress_Score      46
+Academic_Performance_GPA    85
+Duplicados exactos: 0 | Student_ID repetidos: 0
+Fechas: no aplica (sin columnas de fecha).
+Atipicos (IQR 1.5):
+  Daily_Usage_Hours: 162 (3.6%) | min=0.9 max=14.0
+  Weekend_Extra_Hours: 10 (0.2%) | min=0.0 max=4.5
+  Sleep_Duration_Hours: 72 (1.6%) | min=3.0 max=10.5
+  Perceived_Stress_Score: 75 (1.7%) | min=0.0 max=40.0
+  Mental_Health_Index: 85 (1.9%) | min=32 max=98
+  Academic_Performance_GPA: 68 (1.5%) | min=1.9 max=4.0
+Coherencia Age vs Academic_Level:
+                min  max
+Academic_Level          
+High School      15   21
+Postgraduate     22   26
+Undergraduate    18   26
+DECISIONES: (a) vacios en Stress y GPA: NO imputar; se excluyen solo de los promedios de esas variables para no inventar datos. (b) atipicos: conservar, son valores posibles (14 h de uso, 3 h de sueno) y representan a los casos de mayor riesgo. (c) sin duplicados: no se elimina nada.
+
+=== 4. PROCESAMIENTO ===
+KPIs globales (para validar el dashboard): {'estudiantes': 4500, 'uso_diario_prom': np.float64(5.3), 'salud_mental_prom': np.float64(79.87), 'sueno_prom': np.float64(6.7), 'pct_impacto_negativo': np.float64(3.67)}
+Promedios por rango de uso diario:
+                n  salud_mental  sueno  estres   gpa
+Usage_Range                                         
+0-2 h         178         94.01   7.97    5.88  3.80
+2-4 h        1512         88.89   7.41    9.21  3.66
+4-6 h        1452         81.42   6.78   12.91  3.47
+6-8 h         726         72.92   6.18   16.54  3.26
+8-10 h        350         64.41   5.47   21.16  3.05
+10+ h         282         51.74   4.56   27.20  2.69
+Archivo generado: docs/data.json
+
+=== 5. EVIDENCIA ===
+H1/H2 Correlaciones:
+                          Daily_Usage_Hours  Sleep_Duration_Hours  Perceived_Stress_Score  Mental_Health_Index  Academic_Performance_GPA
+Daily_Usage_Hours                      1.00                 -0.72                    0.75                -0.85                     -0.71
+Sleep_Duration_Hours                  -0.72                  1.00                   -0.66                 0.77                      0.60
+Perceived_Stress_Score                 0.75                 -0.66                    1.00                -0.77                     -0.65
+Mental_Health_Index                   -0.85                  0.77                   -0.77                 1.00                      0.66
+Academic_Performance_GPA              -0.71                  0.60                   -0.65                 0.66                      1.00
+H3 Late_Night_Usage:
+                  Sleep_Duration_Hours  Mental_Health_Index
+Late_Night_Usage                                           
+0                                 7.09                84.48
+1                                 6.43                76.64
+H4 Plataforma:
+                  Daily_Usage_Hours  Mental_Health_Index  Academic_Performance_GPA
+Primary_Platform                                                                  
+Instagram                      5.26                80.01                      3.43
+LinkedIn                       5.27                79.39                      3.43
+Reddit                         5.31                79.28                      3.43
+Snapchat                       5.46                78.99                      3.43
+TikTok                         5.33                79.85                      3.43
+X (Twitter)                    5.14                80.81                      3.43
+YouTube                        5.25                80.16                      3.42
+H5 Impacto declarado:
+                Daily_Usage_Hours  Mental_Health_Index
+Overall_Impact                                        
+Beneficial                   4.42                84.26
+Negative                    12.25                47.13
+Neutral                      8.50                63.42
+H6 Comparacion social:
+                             Perceived_Stress_Score  Mental_Health_Index
+Social_Comparison_Frequency                                             
+Always                                        13.59                79.89
+Frequently                                    13.40                79.94
+Never                                         13.64                80.52
+Rarely                                        13.67                79.41
+Sometimes                                     13.47                79.93
+H7 Estudiantes con 8+ h/dia: 14.8%
+NOTA: son correlaciones, no causalidad. El dataset parece sintetico/de encuesta.
